@@ -3,11 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Product as ProductEntity } from './entities/product.entity';
 import {
   Between,
+  DataSource,
   ILike,
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
+
+import { Messages } from 'src/constants/messages';
 import {
   CreateProductDto,
   OrderRequestDto,
@@ -16,22 +19,14 @@ import {
   SearchProductDto,
   UpdateProductDto,
   Product,
-} from 'src/proto/product';
-import { Messages } from 'src/constants/messages';
-// import {
-//   CreateProductDto,
-//   OrderRequestDto,
-//   ProductResponseMessage,
-//   ProductsResponseMessage,
-//   SearchProductDto,
-//   UpdateProductDto, Product
-// } from 'clt-jwat-common';
+} from 'clt-jwat-common';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(ProductEntity)
     private productsRepository: Repository<ProductEntity>,
+    private dataSource: DataSource,
   ) {}
 
   private buildResponseMany(
@@ -138,19 +133,87 @@ export class ProductsService {
     return this.buildResponse(HttpStatus.OK, Messages.DELETED, null);
   }
 
-  async orderRequest(orderRequestDto: OrderRequestDto) {
-    const { productId, quantity } = orderRequestDto;
-    const productRes = await this.findOne(productId);
-    if (!productRes.product) return productRes;
-    if (productRes.product.quantity === 0)
-      return this.buildResponse(HttpStatus.OK, Messages.OOS, null);
-    if (productRes.product.quantity >= quantity) {
-      await this.productsRepository.update(
-        { id: productId },
-        { quantity: productRes.product.quantity - quantity },
-      );
-      return this.buildResponse(HttpStatus.OK, Messages.UPDATED, null);
+  async orderRequest(
+    orderRequestDto: OrderRequestDto,
+  ): Promise<ProductsResponseMessage> {
+    const { items } = orderRequestDto;
+
+    try {
+      const rs = await this.dataSource.manager.transaction(async (manager) => {
+        const curProductRepository = manager.getRepository(ProductEntity);
+        // const updatedProducts = await Promise.all(
+        //   items.map(async (i) => {
+        //     const product = await curProductRepository.findOne({
+        //       where: {
+        //         id: i.productId,
+        //       },
+        //     });
+
+        //     if (!product) throw `${Messages.NOT_FOUND}: ${i.productId}`;
+        //     if (product.quantity === 0)
+        //       throw `${Messages.OOS}: ${product.name} - ${product.id}`;
+        //     if (product.quantity >= i.quantity) {
+        //       await curProductRepository.update(
+        //         { id: i.productId },
+        //         { quantity: product.quantity - i.quantity },
+        //       );
+        //       return {
+        //         ...product,
+        //         quantity: product.quantity - i.quantity,
+        //         updatedAt: new Date(),
+        //       };
+        //     }
+        //     throw `${Messages.INSUFFICIENT}: ${product.name} - ${product.id}`;
+        //   }),
+        // );
+        const updatedProducts: ProductEntity[] = [];
+        for (const i of items) {
+          const product = await curProductRepository.findOne({
+            where: {
+              id: i.productId,
+            },
+          });
+
+          if (!product) throw `${Messages.NOT_FOUND}: ${i.productId}`;
+
+          if (product.quantity === 0)
+            throw `${Messages.OOS}: ${product.name} - ${product.id}`;
+
+          if (product.quantity >= i.quantity) {
+            await curProductRepository.update(
+              { id: i.productId },
+              { quantity: product.quantity - i.quantity },
+            );
+            updatedProducts.push({
+              ...product,
+              quantity: product.quantity - i.quantity,
+              updatedAt: new Date(),
+            });
+          } else
+            throw `${Messages.INSUFFICIENT}: ${product.name} - ${product.id}`;
+        }
+        return this.buildResponseMany(
+          HttpStatus.OK,
+          Messages.UPDATED,
+          updatedProducts,
+        );
+      });
+
+      return rs;
+    } catch (error) {
+      if (typeof error === 'string')
+        return {
+          code: HttpStatus.BAD_REQUEST,
+          message: error,
+          products: [],
+        };
+      else {
+        return {
+          code: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: Messages.INTERNAL_SERVER_ERROR,
+          products: [],
+        };
+      }
     }
-    return this.buildResponse(HttpStatus.OK, Messages.INSUFFICIENT, null);
   }
 }

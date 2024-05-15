@@ -1,28 +1,18 @@
+import { Observable } from 'rxjs';
 import { Controller } from '@nestjs/common';
-import { ProductsService } from './products.service';
+
 import {
-  CreateProductDto,
-  FindProductByIdDto,
   OrderRequestDto,
-  ProductServiceController,
-  ProductServiceControllerMethods,
-  ProductResponseMessage,
-  ProductsResponseMessage,
+  CreateProductDto,
   SearchProductDto,
   UpdateProductDto,
-} from 'src/proto/product';
-import { Observable } from 'rxjs';
-// import {
-//   CreateProductDto,
-//   FindProductByIdDto,
-//   OrderRequestDto,
-//   ProductResponseMessage,
-//   ProductServiceController,
-//   ProductServiceControllerMethods,
-//   ProductsResponseMessage,
-//   SearchProductDto,
-//   UpdateProductDto,
-// } from 'clt-jwat-common';
+  FindProductByIdDto,
+  ProductResponseMessage,
+  ProductsResponseMessage,
+  ProductServiceController,
+  ProductServiceControllerMethods,
+} from 'clt-jwat-common';
+import { ProductsService } from './products.service';
 
 @Controller()
 @ProductServiceControllerMethods()
@@ -77,9 +67,9 @@ export class ProductsController implements ProductServiceController {
   orderRequest(
     orderRequestDto: OrderRequestDto,
   ):
-    | ProductResponseMessage
-    | Promise<ProductResponseMessage>
-    | Observable<ProductResponseMessage> {
+    | ProductsResponseMessage
+    | Promise<ProductsResponseMessage>
+    | Observable<ProductsResponseMessage> {
     return this.productsService.orderRequest(orderRequestDto);
   }
 }
