@@ -9,7 +9,6 @@ import {
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
-
 import { Messages } from 'src/constants/messages';
 import {
   CreateProductDto,
@@ -130,7 +129,11 @@ export class ProductsService {
     const productRes = await this.findOne(id);
     if (!productRes.product) return productRes;
     await this.productsRepository.softDelete(id);
-    return this.buildResponse(HttpStatus.OK, Messages.DELETED, null);
+    return this.buildResponse(
+      HttpStatus.OK,
+      Messages.DELETED,
+      productRes.product,
+    );
   }
 
   async orderRequest(
@@ -141,31 +144,6 @@ export class ProductsService {
     try {
       const rs = await this.dataSource.manager.transaction(async (manager) => {
         const curProductRepository = manager.getRepository(ProductEntity);
-        // const updatedProducts = await Promise.all(
-        //   items.map(async (i) => {
-        //     const product = await curProductRepository.findOne({
-        //       where: {
-        //         id: i.productId,
-        //       },
-        //     });
-
-        //     if (!product) throw `${Messages.NOT_FOUND}: ${i.productId}`;
-        //     if (product.quantity === 0)
-        //       throw `${Messages.OOS}: ${product.name} - ${product.id}`;
-        //     if (product.quantity >= i.quantity) {
-        //       await curProductRepository.update(
-        //         { id: i.productId },
-        //         { quantity: product.quantity - i.quantity },
-        //       );
-        //       return {
-        //         ...product,
-        //         quantity: product.quantity - i.quantity,
-        //         updatedAt: new Date(),
-        //       };
-        //     }
-        //     throw `${Messages.INSUFFICIENT}: ${product.name} - ${product.id}`;
-        //   }),
-        // );
         const updatedProducts: ProductEntity[] = [];
         for (const i of items) {
           const product = await curProductRepository.findOne({

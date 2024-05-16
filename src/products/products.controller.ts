@@ -18,7 +18,6 @@ import { ProductsService } from './products.service';
 @ProductServiceControllerMethods()
 export class ProductsController implements ProductServiceController {
   constructor(private readonly productsService: ProductsService) {}
-
   findProductById(
     findProductByIdDto: FindProductByIdDto,
   ):
